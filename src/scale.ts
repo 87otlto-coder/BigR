@@ -5,6 +5,8 @@ import type {
 
 /** Intentionally bounded: reject large requests rather than silently clamping them. */
 export const MAX_OUTPUT_PIXELS = 64_000_000;
+export const MAX_EVIDENCE_MASKS = 16;
+export const MAX_RASTER_OUTPUT_BYTES = 512 * 1024 * 1024;
 
 function positiveInt(value: number, name: string): void {
   if (!Number.isSafeInteger(value) || value <= 0) {
@@ -77,6 +79,26 @@ function validateRaster(raster: Raster): number {
       (!(raster.mask instanceof Uint8Array) || raster.mask.length !== count)) {
     throw new RangeError(`raster.mask must contain exactly ${count} bytes`);
   }
+  if (raster.evidenceMasks !== undefined) {
+    const planes = raster.evidenceMasks;
+    if (planes === null || typeof planes !== "object" || Array.isArray(planes) ||
+        (Object.getPrototypeOf(planes) !== Object.prototype && Object.getPrototypeOf(planes) !== null)) {
+      throw new TypeError("raster.evidenceMasks must be a plain object");
+    }
+    const names = Object.keys(planes);
+    if (names.length > MAX_EVIDENCE_MASKS) {
+      throw new RangeError("raster.evidenceMasks exceeds MAX_EVIDENCE_MASKS");
+    }
+    for (const name of names) {
+      if (!/^[a-z][a-z0-9_-]{0,39}$/.test(name)) {
+        throw new TypeError("invalid evidence mask name: " + name);
+      }
+      const data = planes[name];
+      if (!(data instanceof Uint8Array) || data.length !== count) {
+        throw new RangeError("raster.evidenceMasks." + name + " must contain exactly " + count + " bytes");
+      }
+    }
+  }
   if (raster.palette !== undefined) {
     if (raster.format !== "indexed8") throw new TypeError("RGBA rasters cannot have an indexed palette");
     clonePalette(raster.palette);
@@ -92,8 +114,18 @@ export function scaleRasterNearest(raster: Raster, scale: IntegerScale): Raster 
   const height = safeMultiply(raster.height, sy, "scaled raster height");
   const outCount = checkPixels(width, height, "output raster");
   const bytes = safeMultiply(outCount, channels, "output raster bytes");
+  const evidenceNames = Object.keys(raster.evidenceMasks ?? {}).sort();
+  const totalBytes = safeMultiply(outCount, channels + (raster.mask === undefined ? 0 : 1) + evidenceNames.length, "output raster allocated bytes");
+  if (totalBytes > MAX_RASTER_OUTPUT_BYTES) {
+    throw new RangeError("output raster exceeds MAX_RASTER_OUTPUT_BYTES");
+  }
   const pixels = new Uint8Array(bytes);
   const mask = raster.mask === undefined ? undefined : new Uint8Array(outCount);
+  const evidenceMasks: Record<string, Uint8Array> | undefined = raster.evidenceMasks === undefined
+    ? undefined : {} as Record<string, Uint8Array>;
+  if (evidenceMasks !== undefined) {
+    for (const name of evidenceNames) evidenceMasks[name] = new Uint8Array(outCount);
+  }
 
   for (let dy = 0; dy < height; dy++) {
     const srcY = Math.floor(dy / sy);
@@ -103,12 +135,18 @@ export function scaleRasterNearest(raster: Raster, scale: IntegerScale): Raster 
       const dstOffset = (dy * width + dx) * channels;
       for (let c = 0; c < channels; c++) pixels[dstOffset + c] = raster.pixels[srcOffset + c]!;
       if (mask !== undefined) mask[dy * width + dx] = raster.mask![srcY * raster.width + srcX]!;
+      if (evidenceMasks !== undefined) {
+        for (const name of evidenceNames) {
+          evidenceMasks[name]![dy * width + dx] = raster.evidenceMasks![name]![srcY * raster.width + srcX]!;
+        }
+      }
     }
   }
 
   return {
     width, height, format: raster.format, pixels,
     ...(mask === undefined ? {} : { mask }),
+    ...(evidenceMasks === undefined ? {} : { evidenceMasks }),
     ...(raster.palette === undefined ? {} : { palette: clonePalette(raster.palette) }),
   };
 }
@@ -131,12 +169,19 @@ function scaleFrame(frame: AnimationFrame, sx: number, sy: number): ScaledAnimat
   signedInt(frame.x, "frame.x");
   signedInt(frame.y, "frame.y");
   positiveInt(frame.durationMs, "frame.durationMs");
+  if (frame.sourcePlacement !== undefined) {
+    signedInt(frame.sourcePlacement.x, "frame.sourcePlacement.x");
+    signedInt(frame.sourcePlacement.y, "frame.sourcePlacement.y");
+    checkSize(frame.sourcePlacement, "frame.sourcePlacement");
+  }
   const raster = scaleRasterNearest(frame.raster, { x: sx, y: sy });
   const x = safeMultiply(frame.x, sx, "scaled frame.x");
   const y = safeMultiply(frame.y, sy, "scaled frame.y");
   return {
     x, y, raster, durationMs: frame.durationMs,
-    sourcePlacement: { x: frame.x, y: frame.y, width: frame.raster.width, height: frame.raster.height },
+    sourcePlacement: frame.sourcePlacement === undefined
+      ? { x: frame.x, y: frame.y, width: frame.raster.width, height: frame.raster.height }
+      : { ...frame.sourcePlacement },
     ...(frame.id === undefined ? {} : { id: frame.id }),
     ...(frame.metadata === undefined ? {} : { metadata: cloneJson(frame.metadata) }),
   };
@@ -147,6 +192,7 @@ export function scaleAnimationNearest(animation: Animation, scale: IntegerScale)
   const { sx, sy } = scaleFactors(scale);
   if (animation === null || typeof animation !== "object") throw new TypeError("animation is required");
   checkSize(animation.canvas, "animation.canvas");
+  if (animation.sourceCanvas !== undefined) checkSize(animation.sourceCanvas, "animation.sourceCanvas");
   const width = safeMultiply(animation.canvas.width, sx, "scaled canvas width");
   const height = safeMultiply(animation.canvas.height, sy, "scaled canvas height");
   checkPixels(width, height, "output canvas");
@@ -155,7 +201,9 @@ export function scaleAnimationNearest(animation: Animation, scale: IntegerScale)
   }
   return {
     canvas: { width, height },
-    sourceCanvas: { width: animation.canvas.width, height: animation.canvas.height },
+    sourceCanvas: animation.sourceCanvas === undefined
+      ? { width: animation.canvas.width, height: animation.canvas.height }
+      : { ...animation.sourceCanvas },
     frames: animation.frames.map((frame) => scaleFrame(frame, sx, sy)),
     ...(animation.provenance === undefined ? {} : { provenance: cloneJson(animation.provenance) }),
   };

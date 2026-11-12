@@ -20,6 +20,8 @@ export interface Raster {
   pixels: Uint8Array;
   /** Optional one-byte-per-pixel source mask. Values are copied exactly, not thresholded. */
   mask?: Uint8Array;
+  /** Named, uninterpreted byte planes such as "palette-known"; each is width*height bytes. */
+  evidenceMasks?: Record<string, Uint8Array>;
   /** Indexed pixels remain indexed; this palette, when supplied, is copied unchanged. */
   palette?: Palette;
 }
@@ -32,6 +34,8 @@ export interface Size { width: number; height: number; }
 
 export interface AnimationFrame extends Position {
   raster: Raster;
+  /** Optional original-space geometry retained across multiple scaling stages. */
+  sourcePlacement?: Position & Size;
   /** Positive duration in whole milliseconds; no deduplication or timing inference. */
   durationMs: number;
   id?: string;
@@ -41,6 +45,8 @@ export interface AnimationFrame extends Position {
 export interface Animation {
   /** All frames share the original, fixed animation canvas. */
   canvas: Size;
+  /** Optional original-space canvas from an earlier scaling stage. */
+  sourceCanvas?: Size;
   /** Supplied frame order must be preserved, including A/B/A loops. */
   frames: AnimationFrame[];
   provenance?: JsonValue;

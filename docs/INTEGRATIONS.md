@@ -4,7 +4,7 @@ All integration is **asset-level and downstream of existing extraction**. No Big
 
 ## 1. MK DOS Extractor — first source-data pilot
 
-Start with independently verified MK2 material: 320x200 intro images, Mountain graphics with explicitly **uncertain palettes**, and verified Tomb/Portal floor layers. The adapter maps pixel bytes, any masks, candidate palettes, sprite/layer origins, stage geometry and provenance into BigR's contract. Validate indices and masks against pixel-exact expectations; preserve palette alternatives and uncertainty rather than presenting a guessed RGB preview as authoritative. Expand to MK1/MK3 later.
+Start with independently verified MK2 material: 320x200 intro images, Mountain graphics with explicitly **uncertain palettes**, and verified Tomb/Portal floor layers. The adapter maps pixel bytes, any masks, candidate palettes, sprite/layer origins, stage geometry and provenance into BigR's contract. Validate original index and opacity planes independently from the palette-known evidence mask; preserve each as distinct byte planes. The MK2 P14/P15 floor palette-known masks can be all zero, which does not imply the pixels are transparent. Preserve palette alternatives and uncertainty rather than presenting a guessed RGB preview as authoritative. Expand to MK1/MK3 later.
 
 ## 2. ScummBucket — independent scene-animation pilot
 
