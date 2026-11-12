@@ -1,0 +1,41 @@
+# Local dependencies, builds, caches and editors
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Private source/game fixtures, captures and derived export directories
+FIXTURE/
+fixture/
+fixtures/private/
+private/
+OUTPUT/
+output/
+outputs/
+captures/
+reports/private/
+*.nes
+*.smc
+*.sfc
+*.sav
+*.state
+*.srm
+
+# Sensitive environment material
+.env
+.env.*
+!.env.example
+*.pem
+*.key

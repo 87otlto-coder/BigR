@@ -1,0 +1,11 @@
+# BigR — Short agent handoff instructions
+
+**Canonical policy:** [AGENTS.md](../AGENTS.md). Read the charter, decisions and CI/evidence policy before work. This document is a concise companion, not a second authority.
+
+BigR is an independent, deterministic, indexed-first nearest-neighbor pixel-art processing library for ScummBucket, SpriteMine (initial SMB3 US PRG1) and MK DOS Extractor (DOS MK1–3). Work on supplied decoded buffers and metadata only. Do **not** decode game assets, infer missing palettes/animations/positions, conflate RGB previews with indices, alter original inputs or upgrade provenance confidence. Preserve indexed data, masks, transparency, palette uncertainty, source geometry, anchor/offsets, layer information, frames and timing where verified. Separate exact integer scaling from aspect correction and future lossy enhancements. Keep processing core, client adapters, exports and any UI independent. Technology choice is pending Milestone 1.
+
+Start by checking repository state, current branch, docs and outstanding evidence. The owner decides major scope changes and merges; agents handle routine engineering. Work in focused feature/research/docs branches and PRs; never merge/push main without owner approval. Keep implementation small, tested, reproducible and documented. All failures and partial support must be explicitly reported. Preserve source/output hashes and reproducibility records. Do not commit commercial game assets, ROMs, captures, save states, secrets or private fixtures. Use synthetic public tests and private local integration fixtures.
+
+The owner's local root is supplied outside this repository: verify it before use, never invent its path. Windows-first PowerShell instructions, hosted **Windows-only** CI; no Linux/macOS without explicit approval. No duplicate CI matrices, routine artifact uploads or paid spending. If uploads are authorized, use the exact-type newest-three-successful retention policy with three-day expiry, protected non-reproducible evidence and verified cleanup. Read [CI and evidence policy](CI_AND_EVIDENCE_POLICY.md).
+
+On each meaningful handoff report verified changes, actual test commands/results, errors, unsupported cases, uncertainty, branch/commit/PR state and next recommendation. Synchronize this summary when AGENTS.md changes.
