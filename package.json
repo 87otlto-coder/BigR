@@ -19,6 +19,6 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "verify": "npm run check && npm run build && npm test"
   },
-  "devDependencies": { "typescript": "^5.8.3" },
+  "devDependencies": { "typescript": "5.8.3" },
   "engines": { "node": ">=22" }
 }

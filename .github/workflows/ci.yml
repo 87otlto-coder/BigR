@@ -20,13 +20,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Install development dependencies
         run: npm install --no-audit --no-fund
+      - name: Capture dependency lock for review
+        shell: pwsh
+        run: |
+          Write-Output "BIGR_LOCK_BEGIN"
+          Get-Content package-lock.json -Raw
+          Write-Output "BIGR_LOCK_END"
       - name: Typecheck, test and build
         run: npm run verify
       # Deliberately no large artifacts or build uploads.
