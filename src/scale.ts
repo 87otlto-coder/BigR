@@ -122,7 +122,7 @@ export function scaleRasterNearest(raster: Raster, scale: IntegerScale): Raster 
   const pixels = new Uint8Array(bytes);
   const mask = raster.mask === undefined ? undefined : new Uint8Array(outCount);
   const evidenceMasks: Record<string, Uint8Array> | undefined = raster.evidenceMasks === undefined
-    ? undefined : Object.create(null) as Record<string, Uint8Array>;
+    ? undefined : {} as Record<string, Uint8Array>;
   if (evidenceMasks !== undefined) {
     for (const name of evidenceNames) evidenceMasks[name] = new Uint8Array(outCount);
   }
