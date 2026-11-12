@@ -26,13 +26,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install development dependencies
-        run: npm install --no-audit --no-fund
-      - name: Capture dependency lock for review
-        shell: pwsh
-        run: |
-          Write-Output "BIGR_LOCK_BEGIN"
-          Get-Content package-lock.json -Raw
-          Write-Output "BIGR_LOCK_END"
+        run: npm ci --no-audit --no-fund
       - name: Typecheck, test and build
         run: npm run verify
       # Deliberately no large artifacts or build uploads.

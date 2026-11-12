@@ -84,4 +84,4 @@ Safety:
 
 ## Boundaries and follow-up
 
-This is a **binary package implementation**, not real MK2 / MI2 / SMB3 acceptance. P1 is still incomplete until independent verified game assets, color/palette context, layer placement, hashes and timing are tested. The package schema does not yet support multiple palettes for one frame or comprehensive renderer state. Represent those as explicitly typed future versions, not guessed v1 fields. The package license/publication decision and deterministic dependency lockfile are separate hardening tasks.
+This is a **binary package implementation**, not real MK2 / MI2 / SMB3 acceptance. P1 is still incomplete until independent verified game assets, color/palette context, layer placement, hashes and timing are tested. The package schema does not yet support multiple palettes for one frame or comprehensive renderer state. Represent those as explicitly typed future versions, not guessed v1 fields. The package license/publication decision remains a separate hardening task. Windows CI uses a committed lockfile with pinned TypeScript 5.8.3 and runs `npm ci`.
