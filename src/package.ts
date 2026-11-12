@@ -1,4 +1,4 @@
-import { scaleAnimationNearest, scaleRasterNearest } from "./scale.ts";
+import { MAX_EVIDENCE_MASKS, scaleAnimationNearest, scaleRasterNearest } from "./scale.ts";
 import type { Animation, IntegerScale, JsonValue, Palette, Position, Raster, Size } from "./types.ts";
 
 /** V1 is an intentionally narrow, versioned interchange format, not a ROM format. */
@@ -14,7 +14,7 @@ export interface PayloadRecord { byteLength: number; sha256: string; }
 export interface PaletteRecord { channels: 3 | 4; entries: string; confidence: "verified" | "candidate" | "unknown"; id?: string; }
 export interface RasterRecord {
   width: number; height: number; format: "indexed8" | "rgba8";
-  pixels: string; mask?: string; palette?: PaletteRecord;
+  pixels: string; mask?: string; evidenceMasks?: Record<string, string>; palette?: PaletteRecord;
 }
 export interface FrameRecord {
   x: number; y: number; durationMs: number; raster: RasterRecord;
@@ -130,7 +130,7 @@ export function canonicalManifestJson(manifest: AssetManifestV1): string {
 
 function validateRasterRecord(value: unknown, label: string, paths: Set<string>): RasterRecord {
   const record = object(value, label);
-  keys(record, ["width", "height", "format", "pixels", "mask", "palette"], label);
+  keys(record, ["width", "height", "format", "pixels", "mask", "palette", "evidenceMasks"], label);
   positiveSize({ width: record.width, height: record.height }, label);
   if (record.format !== "indexed8" && record.format !== "rgba8") {
     throw new TypeError(label + ".format is not indexed8 or rgba8");
@@ -142,6 +142,21 @@ function validateRasterRecord(value: unknown, label: string, paths: Set<string>)
     const mask = safePath(record.mask);
     if (paths.has(mask)) throw new TypeError("duplicate binary reference: " + mask);
     paths.add(mask);
+  }
+  if (record.evidenceMasks !== undefined) {
+    const masks = object(record.evidenceMasks, label + ".evidenceMasks");
+    const names = Object.keys(masks);
+    if (names.length > MAX_EVIDENCE_MASKS) {
+      throw new RangeError("too many evidence masks");
+    }
+    for (const name of names) {
+      if (!/^[a-z][a-z0-9_-]{0,39}$/.test(name)) {
+        throw new TypeError("invalid evidence mask name: " + name);
+      }
+      const path = safePath(masks[name]);
+      if (paths.has(path)) throw new TypeError("duplicate binary reference: " + path);
+      paths.add(path);
+    }
   }
   if (record.palette !== undefined) {
     if (record.format !== "indexed8") throw new TypeError("RGBA raster cannot have indexed palette");
@@ -214,7 +229,7 @@ export function validateManifest(value: unknown): asserts value is AssetManifest
   }
   const payloads = object(m.payloads, "manifest.payloads");
   const declared = Object.keys(payloads);
-  if (declared.length !== used.size || declared.length > MAX_PACKAGE_FRAMES * 3) {
+  if (declared.length !== used.size || declared.length > MAX_PACKAGE_FRAMES * (3 + MAX_EVIDENCE_MASKS)) {
     throw new RangeError("payload keys do not exactly match asset references");
   }
   let total = 0;
@@ -297,10 +312,17 @@ export async function packageAsset(
     return path;
   }
   async function rasterRecord(r: Raster, prefix: string): Promise<RasterRecord> {
+    const evidenceMasks: Record<string, string> = Object.create(null);
+    if (r.evidenceMasks !== undefined) {
+      for (const name of Object.keys(r.evidenceMasks).sort()) {
+        evidenceMasks[name] = await add("data/" + prefix + "-evidence-" + name + ".bin", r.evidenceMasks[name]!);
+      }
+    }
     return {
       width: r.width, height: r.height, format: r.format,
       pixels: await add("data/" + prefix + "-pixels.bin", r.pixels),
       ...(r.mask === undefined ? {} : { mask: await add("data/" + prefix + "-mask.bin", r.mask) }),
+      ...(r.evidenceMasks === undefined ? {} : { evidenceMasks }),
       ...(r.palette === undefined ? {} : {
         palette: {
           channels: r.palette.channels, confidence: r.palette.confidence,
@@ -374,6 +396,11 @@ export async function unpackAsset(assetPackage: AssetPackage): Promise<SourceAss
       width: record.width, height: record.height, format: record.format,
       pixels: new Uint8Array(blobs[record.pixels]!),
       ...(record.mask === undefined ? {} : { mask: new Uint8Array(blobs[record.mask]!) }),
+      ...(record.evidenceMasks === undefined ? {} : {
+        evidenceMasks: Object.fromEntries(
+          Object.entries(record.evidenceMasks).map(([name, path]) => [name, new Uint8Array(blobs[path]!)])
+        ),
+      }),
       ...(palette === undefined ? {} : { palette }),
     });
   }

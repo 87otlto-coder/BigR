@@ -20,6 +20,8 @@ export interface Raster {
   pixels: Uint8Array;
   /** Optional one-byte-per-pixel source mask. Values are copied exactly, not thresholded. */
   mask?: Uint8Array;
+  /** Named, uninterpreted byte planes such as "palette-known"; each is width*height bytes. */
+  evidenceMasks?: Record<string, Uint8Array>;
   /** Indexed pixels remain indexed; this palette, when supplied, is copied unchanged. */
   palette?: Palette;
 }

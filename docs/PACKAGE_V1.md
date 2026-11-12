@@ -85,3 +85,14 @@ Safety:
 ## Boundaries and follow-up
 
 This is a **binary package implementation**, not real MK2 / MI2 / SMB3 acceptance. P1 is still incomplete until independent verified game assets, color/palette context, layer placement, hashes and timing are tested. The package schema does not yet support multiple palettes for one frame or comprehensive renderer state. Represent those as explicitly typed future versions, not guessed v1 fields. The package license/publication decision remains a separate hardening task. Windows CI uses a committed lockfile with pinned TypeScript 5.8.3 and runs `npm ci`.
+
+
+## Evidence planes for forensic source assets
+
+The codec supports an optional primary \`mask\` plus up to 16 separately named \`evidenceMasks\` byte planes per raster. Each plane is exactly \`width * height\` bytes, is SHA-256 verified independently, and is scaled without normalization, blending or interpretation. A suggested source-adapter convention is:
+
+- \`mask\`: extractor-supplied primary opacity/coverage mask, whose meaning must be recorded in provenance;
+- \`evidenceMasks["palette-known"]\`: independently verified per-pixel knowledge of RGB palette attribution, which may legitimately contain only zero bytes;
+- \`evidenceMasks["source-opacity"]\`: another distinct source coverage or witness plane when the extractor provides one.
+
+An absent palette-known mask is **not equivalent** to a mask full of zeroes. Do not combine palette confidence with pixel opacity. For MK DOS Extractor P14–P15 floor exports, see the [source project status](https://github.com/87otlto-coder/mk-dos-archive/blob/main/PROJECT_STATUS.md); exact palette bank, placement and complete stage composition remain unsupported claims.

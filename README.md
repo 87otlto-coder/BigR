@@ -10,7 +10,7 @@
 
 - Preserve source assets and evidence; output goes into independent buffers.
 - Scale indexed pixels without applying or guessing a palette. Keep palette confidence (verified, candidate, unknown).
-- Scale masks without thresholding; preserve alpha values, source positions, animation frame order, durations and fixed canvas.
+- Scale primary and separately named forensic evidence masks without thresholding; preserve alpha values, source positions, animation frame order, durations and fixed canvas.
 - Fail visibly on invalid input; no automatic clipping, guessing or silent skips.
 - Keep future enhancement filters fully separate from verified nearest-neighbor output.
 

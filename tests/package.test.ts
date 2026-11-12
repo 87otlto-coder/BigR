@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import {
   PACKAGE_SCHEMA, MAX_PACKAGE_BYTES, canonicalJson, canonicalManifestJson,
-  packageAsset, parseManifest, scaleAssetPackage, sha256, unpackAsset, validateManifest,
+  packageAsset, parseManifest, scaleAssetPackage, scaleRasterNearest, sha256, unpackAsset, validateManifest,
 } from "../src/index.ts";
 import type { Animation, AssetPackage, SourceAsset } from "../src/index.ts";
 
@@ -187,4 +187,60 @@ test("filesystem CLI scales private synthetic bundles without overwriting source
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }
+});
+
+test("MK2-style opacity and palette-known evidence masks remain distinct, zero-safe and hashed", async () => {
+  const source: SourceAsset = {
+    kind: "raster",
+    raster: {
+      format: "indexed8", width: 2, height: 2,
+      pixels: Uint8Array.from([0, 3, 8, 15]),
+      mask: Uint8Array.from([0, 255, 128, 7]),
+      evidenceMasks: {
+        "palette-known": Uint8Array.from([0, 0, 0, 0]),
+        "source-opacity": Uint8Array.from([17, 33, 0, 255]),
+      },
+    },
+    provenance: { engine: "synthetic-mk2-like", source: "not-original-game-data" },
+  };
+  const direct = scaleRasterNearest(source.raster, { x: 2, y: 3 });
+  assert.deepEqual([direct.width, direct.height], [4, 6]);
+  assert.deepEqual([...direct.evidenceMasks!["palette-known"]!], new Array(24).fill(0));
+  assert.deepEqual([...direct.evidenceMasks!["source-opacity"]!].slice(0, 8),
+    [17, 17, 33, 33, 17, 17, 33, 33]);
+  assert.deepEqual([...direct.mask!].slice(0, 4), [0, 0, 255, 255]);
+  const packed = await packageAsset(source, "synthetic_mk2_floor");
+  assert.equal(payloadNames(packed).length, 4);
+  assert.ok(payloadNames(packed).includes("data/raster-evidence-palette-known.bin"));
+  const decoded = await unpackAsset(packed);
+  assert.deepEqual(decoded, source);
+  const derived = await scaleAssetPackage(packed, { x: 2, y: 3 });
+  const derivedAsset = await unpackAsset(derived);
+  if (derivedAsset.kind !== "raster") throw new Error("wrong kind");
+  assert.deepEqual(derivedAsset.raster.evidenceMasks, direct.evidenceMasks);
+  assert.deepEqual(derivedAsset.raster.mask, direct.mask);
+  const bad = copyPackage(packed);
+  bad.blobs["data/raster-evidence-palette-known.bin"]![0] = 255;
+  await assert.rejects(unpackAsset(bad), /SHA-256 mismatch/);
+});
+test("evidence mask names, lengths and duplicate paths are validated", async () => {
+  const basic = { format: "indexed8" as const, width: 1, height: 1, pixels: Uint8Array.from([0]) };
+  assert.throws(() => scaleRasterNearest({
+    ...basic, evidenceMasks: { "palette-known": new Uint8Array(0) },
+  }, { x: 2 }), /must contain exactly 1 bytes/);
+  assert.throws(() => scaleRasterNearest({
+    ...basic, evidenceMasks: { "../escape": Uint8Array.from([0]) },
+  }, { x: 2 }), /invalid evidence mask name/);
+  const many = Object.fromEntries(Array.from({ length: 17 }, (_, n) => [
+    "mask-" + n, Uint8Array.from([0]),
+  ]));
+  assert.throws(() => scaleRasterNearest({
+    ...basic, evidenceMasks: many,
+  }, { x: 2 }), /MAX_EVIDENCE_MASKS/);
+  const pkg = await packageAsset({
+    kind: "raster", raster: { ...basic, evidenceMasks: { "palette-known": Uint8Array.from([0]) } },
+  }, "test_duplicate");
+  const bad = copyPackage(pkg);
+  bad.manifest.raster!.evidenceMasks!["palette-known"] = bad.manifest.raster!.pixels;
+  assert.throws(() => validateManifest(bad.manifest), /duplicate binary reference/);
 });

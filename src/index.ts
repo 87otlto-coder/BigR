@@ -1,4 +1,7 @@
-export { MAX_OUTPUT_PIXELS, scaleAnimationNearest, scaleRasterNearest } from "./scale.ts";
+export {
+  MAX_OUTPUT_PIXELS, MAX_EVIDENCE_MASKS, MAX_RASTER_OUTPUT_BYTES,
+  scaleAnimationNearest, scaleRasterNearest
+} from "./scale.ts";
 export type {
   Animation, AnimationFrame, IntegerScale, JsonValue, Palette,
   PaletteConfidence, PixelFormat, Position, Raster, ScaledAnimation,
