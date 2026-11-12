@@ -202,7 +202,7 @@ export function validateManifest(value: unknown): asserts value is AssetManifest
         keys(sp, ["x", "y", "width", "height"], "frame.sourcePlacement");
         integer(sp.x, "frame.sourcePlacement.x", false);
         integer(sp.y, "frame.sourcePlacement.y", false);
-        positiveSize(sp, "frame.sourcePlacement");
+        positiveSize({ width: sp.width, height: sp.height }, "frame.sourcePlacement");
       }
       integer(f.x, "frame.x", false);
       integer(f.y, "frame.y", false);
