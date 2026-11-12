@@ -1,5 +1,5 @@
 import { scaleAnimationNearest, scaleRasterNearest } from "./scale.ts";
-import type { Animation, IntegerScale, JsonValue, Palette, Raster, Size } from "./types.ts";
+import type { Animation, IntegerScale, JsonValue, Palette, Position, Raster, Size } from "./types.ts";
 
 /** V1 is an intentionally narrow, versioned interchange format, not a ROM format. */
 export const PACKAGE_SCHEMA = "bigr.asset.v1" as const;
@@ -18,6 +18,7 @@ export interface RasterRecord {
 }
 export interface FrameRecord {
   x: number; y: number; durationMs: number; raster: RasterRecord;
+  sourcePlacement?: Position & Size;
   id?: string; metadata?: JsonValue;
 }
 export interface DerivationRecord {
@@ -31,7 +32,7 @@ export interface AssetManifestV1 {
   kind: "raster" | "animation";
   payloads: Record<string, PayloadRecord>;
   raster?: RasterRecord;
-  animation?: { canvas: Size; frames: FrameRecord[]; provenance?: JsonValue };
+  animation?: { canvas: Size; sourceCanvas?: Size; frames: FrameRecord[]; provenance?: JsonValue };
   metadata?: JsonValue;
   provenance?: JsonValue;
   derivation?: DerivationRecord;
@@ -186,15 +187,23 @@ export function validateManifest(value: unknown): asserts value is AssetManifest
   } else {
     if (m.raster !== undefined) throw new TypeError("animation manifest cannot contain raster");
     const a = object(m.animation, "manifest.animation");
-    keys(a, ["canvas", "frames", "provenance"], "manifest.animation");
+    keys(a, ["canvas", "sourceCanvas", "frames", "provenance"], "manifest.animation");
     positiveSize(a.canvas, "animation.canvas");
+    if (a.sourceCanvas !== undefined) positiveSize(a.sourceCanvas, "animation.sourceCanvas");
     if (a.provenance !== undefined) canonicalJson(a.provenance);
     if (!Array.isArray(a.frames) || a.frames.length === 0 || a.frames.length > MAX_PACKAGE_FRAMES) {
       throw new RangeError("animation.frames must contain 1-" + MAX_PACKAGE_FRAMES + " frames");
     }
     for (const [index, raw] of a.frames.entries()) {
       const f = object(raw, "frame " + index);
-      keys(f, ["raster", "x", "y", "durationMs", "id", "metadata"], "frame " + index);
+      keys(f, ["raster", "x", "y", "durationMs", "id", "metadata", "sourcePlacement"], "frame " + index);
+      if (f.sourcePlacement !== undefined) {
+        const sp = object(f.sourcePlacement, "frame.sourcePlacement");
+        keys(sp, ["x", "y", "width", "height"], "frame.sourcePlacement");
+        integer(sp.x, "frame.sourcePlacement.x", false);
+        integer(sp.y, "frame.sourcePlacement.y", false);
+        positiveSize(sp, "frame.sourcePlacement");
+      }
       integer(f.x, "frame.x", false);
       integer(f.y, "frame.y", false);
       integer(f.durationMs, "frame.durationMs");
@@ -251,8 +260,12 @@ function cloneSourceAsset(asset: SourceAsset): SourceAsset {
       kind: "animation", ...common,
       animation: {
         canvas: copy.canvas,
-        frames: copy.frames.map((f) => ({
+        ...(asset.animation.sourceCanvas === undefined ? {} : { sourceCanvas: { ...copy.sourceCanvas } }),
+        frames: copy.frames.map((f, i) => ({
           raster: f.raster, x: f.x, y: f.y, durationMs: f.durationMs,
+          ...(asset.animation.frames[i]!.sourcePlacement === undefined ? {} : {
+            sourcePlacement: { ...f.sourcePlacement },
+          }),
           ...(f.id === undefined ? {} : { id: f.id }),
           ...(f.metadata === undefined ? {} : { metadata: f.metadata }),
         })),
@@ -312,6 +325,7 @@ export async function packageAsset(
       const f = asset.animation.frames[i]!;
       frames.push({
         x: f.x, y: f.y, durationMs: f.durationMs,
+        ...(f.sourcePlacement === undefined ? {} : { sourcePlacement: { ...f.sourcePlacement } }),
         raster: await rasterRecord(f.raster, "frame-" + String(i).padStart(6, "0")),
         ...(f.id === undefined ? {} : { id: f.id }),
         ...(f.metadata === undefined ? {} : { metadata: f.metadata }),
@@ -321,6 +335,7 @@ export async function packageAsset(
       ...common, kind: "animation",
       animation: {
         canvas: { ...asset.animation.canvas }, frames,
+        ...(asset.animation.sourceCanvas === undefined ? {} : { sourceCanvas: { ...asset.animation.sourceCanvas } }),
         ...(asset.animation.provenance === undefined ? {} : { provenance: asset.animation.provenance }),
       },
     };
@@ -372,8 +387,10 @@ export async function unpackAsset(assetPackage: AssetPackage): Promise<SourceAss
     kind: "animation", ...common,
     animation: {
       canvas: { ...animation.canvas },
+      ...(animation.sourceCanvas === undefined ? {} : { sourceCanvas: { ...animation.sourceCanvas } }),
       frames: animation.frames.map((f) => ({
         x: f.x, y: f.y, durationMs: f.durationMs, raster: rawRaster(f.raster),
+        ...(f.sourcePlacement === undefined ? {} : { sourcePlacement: { ...f.sourcePlacement } }),
         ...(f.id === undefined ? {} : { id: f.id }),
         ...(f.metadata === undefined ? {} : { metadata: copyJson(f.metadata) }),
       })),

@@ -3,7 +3,7 @@
   "version": "0.1.0-dev.0",
   "private": true,
   "type": "module",
-  "description": "Deterministic, asset-level nearest-neighbor scaling for indexed and RGBA pixel art",
+  "description": "Deterministic, evidence-preserving pixel-art scaling",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -11,12 +11,13 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
+  "bin": { "bigr": "./bin/bigr.mjs" },
+  "files": ["dist", "bin", "README.md"],
   "scripts": {
     "check": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
-    "test": "node --experimental-strip-types --test tests/core.test.ts",
-    "verify": "npm run check && npm test && npm run build"
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "verify": "npm run check && npm run build && npm test"
   },
   "devDependencies": { "typescript": "^5.8.3" },
   "engines": { "node": ">=22" }

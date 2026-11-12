@@ -131,12 +131,19 @@ function scaleFrame(frame: AnimationFrame, sx: number, sy: number): ScaledAnimat
   signedInt(frame.x, "frame.x");
   signedInt(frame.y, "frame.y");
   positiveInt(frame.durationMs, "frame.durationMs");
+  if (frame.sourcePlacement !== undefined) {
+    signedInt(frame.sourcePlacement.x, "frame.sourcePlacement.x");
+    signedInt(frame.sourcePlacement.y, "frame.sourcePlacement.y");
+    checkSize(frame.sourcePlacement, "frame.sourcePlacement");
+  }
   const raster = scaleRasterNearest(frame.raster, { x: sx, y: sy });
   const x = safeMultiply(frame.x, sx, "scaled frame.x");
   const y = safeMultiply(frame.y, sy, "scaled frame.y");
   return {
     x, y, raster, durationMs: frame.durationMs,
-    sourcePlacement: { x: frame.x, y: frame.y, width: frame.raster.width, height: frame.raster.height },
+    sourcePlacement: frame.sourcePlacement === undefined
+      ? { x: frame.x, y: frame.y, width: frame.raster.width, height: frame.raster.height }
+      : { ...frame.sourcePlacement },
     ...(frame.id === undefined ? {} : { id: frame.id }),
     ...(frame.metadata === undefined ? {} : { metadata: cloneJson(frame.metadata) }),
   };
@@ -147,6 +154,7 @@ export function scaleAnimationNearest(animation: Animation, scale: IntegerScale)
   const { sx, sy } = scaleFactors(scale);
   if (animation === null || typeof animation !== "object") throw new TypeError("animation is required");
   checkSize(animation.canvas, "animation.canvas");
+  if (animation.sourceCanvas !== undefined) checkSize(animation.sourceCanvas, "animation.sourceCanvas");
   const width = safeMultiply(animation.canvas.width, sx, "scaled canvas width");
   const height = safeMultiply(animation.canvas.height, sy, "scaled canvas height");
   checkPixels(width, height, "output canvas");
@@ -155,7 +163,9 @@ export function scaleAnimationNearest(animation: Animation, scale: IntegerScale)
   }
   return {
     canvas: { width, height },
-    sourceCanvas: { width: animation.canvas.width, height: animation.canvas.height },
+    sourceCanvas: animation.sourceCanvas === undefined
+      ? { width: animation.canvas.width, height: animation.canvas.height }
+      : { ...animation.sourceCanvas },
     frames: animation.frames.map((frame) => scaleFrame(frame, sx, sy)),
     ...(animation.provenance === undefined ? {} : { provenance: cloneJson(animation.provenance) }),
   };
