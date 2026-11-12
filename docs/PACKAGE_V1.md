@@ -75,7 +75,7 @@ node bin/bigr.mjs --input SOURCE_DIRECTORY --output NEW_DIRECTORY --x 5 --y 6
 Safety:
 
 - Never run against a game ROM: input is a BigR package directory, not a game archive or image file.
-- Manifest paths are constrained to safe relative \`data/*.bin\` names. Binary symlinks are rejected by the CLI.
+- Manifest paths are constrained to safe relative \`data/*.bin\` names. The CLI rejects symlinked package/data directories, symlinked binary payloads and unlisted files in `data/`.
 - Every declared payload must match its SHA-256 and byte count; unknown versions, extra/missing payload blobs and other mismatches fail visibly.
 - No existing output directory may be overwritten, and output may not nest inside input or vice versa.
 - Output is built in a temporary sibling directory, reverified, then renamed to the requested destination. Errors remove temporary output.

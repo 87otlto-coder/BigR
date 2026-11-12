@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -177,6 +177,12 @@ test("filesystem CLI scales private synthetic bundles without overwriting source
     assert.equal(decoded.raster.mask![0], 4);
     assert.equal(decoded.raster.palette!.confidence, "unknown");
     assert.equal(run().status, 1, "CLI must refuse overwriting destination");
+    const unlisted = join(inputDir, "data", "unlisted.bin");
+    writeFileSync(unlisted, Uint8Array.from([1]));
+    const rejectedExtra = run(join(parent, "must-not-exist"));
+    assert.equal(rejectedExtra.status, 1, "CLI must refuse unlisted files");
+    assert.match(rejectedExtra.stderr, /unlisted source payload files/);
+    unlinkSync(unlisted);
     assert.ok(!readdirSync(parent).some(name => name.startsWith(".bigr-stage-")), "staging directory leaked");
   } finally {
     rmSync(parent, { recursive: true, force: true });
