@@ -131,7 +131,7 @@ test("M1 native export defaults to 1x and rejects nested or invalid outputs", as
     assert.equal(native.status, 0, native.stderr);
     const image = unpackPng(readFileSync(join(out, "image.png")));
     assert.deepEqual([image.width, image.height], [2, 1]);
-    assert.deepEqual([...image.scanlines], [0, ...original.kind === "raster" ? original.raster.pixels : []]);
+    assert.deepEqual([...image.scanlines], [0, ...Array.from(original.kind === "raster" ? original.raster.pixels : [])]);
     const nested = run("render", "--input", input, "--output", join(input, "nested"));
     assert.equal(nested.status, 2);
     assert.equal(readJson(nested.stderr).error.code, "INVALID_ARGUMENTS");
