@@ -187,13 +187,26 @@ async function main() {
       packageSchema: manifest.schema, kind: manifest.kind, sourceManifestSha256,
       payloadCount: Object.keys(manifest.payloads).length,
       pngRenderable: asset.kind === "raster" && asset.raster.format === "rgba8" &&
-        asset.raster.mask === undefined,
+        asset.raster.mask === undefined &&
+      BigInt(asset.raster.width) * BigInt(asset.raster.height) <= BigInt(MAX_PNG_PIXELS),
     });
     return;
   }
   await absent(options.output);
   if (asset.kind !== "raster") {
     fail("UNSUPPORTED_FEATURE", "M1 PNG exporter supports raster packages only; animation follows later", 3);
+  }
+  if (asset.raster.format !== "rgba8") {
+    fail("UNSUPPORTED_FEATURE", "PNG export currently requires rgba8; indexed8 needs explicit palette conversion", 3);
+  }
+  if (asset.raster.mask !== undefined) {
+    fail("UNSUPPORTED_FEATURE", "Primary mask semantics are unspecified; explicit compositing is required", 3);
+  }
+  // Preflight before allocating large scaled buffers. BigInt avoids unsafe multiplication.
+  const outputPixels = BigInt(asset.raster.width) * BigInt(asset.raster.height) *
+    BigInt(options.scale) * BigInt(options.scale);
+  if (outputPixels > BigInt(MAX_PNG_PIXELS)) {
+    fail("UNSUPPORTED_FEATURE", "PNG export exceeds M1 4-million-pixel limit", 3);
   }
   const scaled = scaleRasterNearest(asset.raster, { x: options.scale });
   const png = pngRgba(scaled);
